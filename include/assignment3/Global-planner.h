@@ -1,6 +1,13 @@
 #ifndef GLOBAL_PLANNER_H
 #define GLOBAL_PLANNER_H
 
+#include "geometry_msgs/Twist.h"
+#include "geometry_msgs/PoseStamped.h"
+
+#include "nav_msgs/Odometry.h"
+#include "nav_msgs/Path.h"
+#include "geometry_msgs/Point.h"
+
 class GlobalPlanner
 {
     private:
