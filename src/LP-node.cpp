@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "rectangle-planner-node" );
     ros::NodeHandle n;
 
-    LocalPlanner LP;
+    LocalPlanner LP(nav_msgs::Path());
     SubscriptionPublisher<nav_msgs::Path, geometry_msgs::Point> rectReceiver("/plan", "/rectspec", LP.followCarrot);
 
 
