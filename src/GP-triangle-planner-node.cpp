@@ -10,9 +10,6 @@
 #include "subscriptionPublisher.h"
 #include "Global-planner.h"
 
-
-
-
 int main(int argc, char *argv[])
 {
     ros::init(argc, argv, "rectangle-planner-node" );
@@ -21,13 +18,9 @@ int main(int argc, char *argv[])
     GlobalPlanner GP;
     SubscriptionPublisher<nav_msgs::Path, geometry_msgs::Point> rectReceiver("/plan", "/trispec", GP.generateTriangularPath);
 
-
     std::cout << "awaiting a point message for height and width of the rectangle on the /trispec topic \n";
 
     ros::spin();
 
     return 0;    
-
-
-    return 0;
 }

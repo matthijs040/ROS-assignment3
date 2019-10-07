@@ -11,7 +11,7 @@ class GlobalPlanner
     GlobalPlanner()
     {     }
 
-    nav_msgs::Path generateRectangularPath(geometry_msgs::Point widthAndHeight)
+    nav_msgs::Path generateRectangularPath(const geometry_msgs::Point& widthAndHeight) const
     {
         nav_msgs::Path path;
         int width = widthAndHeight.x, height = widthAndHeight.y;
@@ -36,9 +36,24 @@ class GlobalPlanner
         return path;        
     }
 
-    nav_msgs::Path generateTriangularPath()
+    nav_msgs::Path generateTriangularPath(const geometry_msgs::Point& widthAndHeight) const
     {
+        nav_msgs::Path path;
+        int width = widthAndHeight.x, height = widthAndHeight.y, offset = widthAndHeight.z;
+        
+        geometry_msgs::PoseStamped pose = geometry_msgs::PoseStamped();
 
+        //Bottom left pose.
+        path.poses.push_back(pose);
+
+        //Bottom right pose.
+        pose.pose.position.x += width;
+        path.poses.push_back(pose);
+
+        //Top left pose.
+        pose.pose.position.x += offset;
+        pose.pose.position.y += height;
+        path.poses.push_back(pose);
     }
 
 };
