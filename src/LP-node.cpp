@@ -10,15 +10,17 @@
 #include "../include/assignment3/subscriptionPublisher.h"
 #include "../include/assignment3/Local-planner.h"
 
-std::unique_ptr<nav_msgs::Path> Path;
+
+nav_msgs::Path Path = nav_msgs::Path();
+bool hasdata = false;
 
 void pathCallback(const nav_msgs::Path::ConstPtr& msg)
 {
     ROS_INFO("Received a plan path message!");
-    if(!Path)
-    {
-        Path = std::make_unique<nav_msgs::Path>(*msg);
-    }
+    hasdata = true;
+
+    Path = *msg;
+    
 }
 
 int main(int argc, char *argv[])
@@ -32,16 +34,19 @@ int main(int argc, char *argv[])
 
     // Wait until receiving a path.
     ROS_INFO("awaiting a path on the /plan topic. \n");
-    while(!Path)
+    while(!hasdata)
     {
         ros::spinOnce();
     }
 
+    nav_msgs::Path path = Path;
+
     // Path has been received.
     // Local planner sets up the publisher and subscriber.
-    LocalPlanner planner = LocalPlanner(*Path, "/odom", "/cmd_vel");
+    LocalPlanner planner = LocalPlanner(path.poses, "/odom", "/cmd_vel");
 
     ros::spin();
 
     return 0;    
 }
+

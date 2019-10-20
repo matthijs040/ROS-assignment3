@@ -1,8 +1,6 @@
 #ifndef LOCAL_PLANNER_H
 #define LOCAL_PLANNER_H
 
-#include <list>
-
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/PoseStamped.h"
 
@@ -11,20 +9,20 @@
 #include "geometry_msgs/Point.h"
 
 #include "math.h"
+#include "servoing.h"
 
 class LocalPlanner
 {
     private:
-    double lookaheadDistance = 20.0;
+    double lookaheadDistance = 100.0;
     std::vector<geometry_msgs::PoseStamped> path; 
     std::vector<geometry_msgs::PoseStamped>::iterator goal;
+    uint index;
 
     ros::NodeHandle n;
     ros::Publisher cmdPub;
     ros::Subscriber odomSub;
-
-    double angularP = 1.2;
-    double linearP = 1.0;
+    Servoing controller;
 
     void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
@@ -74,6 +72,16 @@ class LocalPlanner
         // Y = a * X + b  =====>  b = Y / ( a * X )
         double b = A.y / ( a * A.x );
 
+        // If it is a straight horizontal line b is equal to the Y coordinate of either point.
+        if(a == 0)
+        { b = A.y; }
+
+        // If it is a straight vertical line a == 0, b is equal to the X coordinate of either point.
+        if(a == nan("") )
+        {
+            a = 0; b = A.x;
+        }
+
         return std::make_pair<double&, double&>(a , b);
     }
 
@@ -83,17 +91,25 @@ class LocalPlanner
     //          In case of no intersects, an empty point (?)
     geometry_msgs::Point getLookaheadPoint(const geometry_msgs::Point& C, double r)
     {
-        const geometry_msgs::Point B = this->goal->pose.position, 
-                                   A = (this->goal--)->pose.position; 
+        const geometry_msgs::Point B = goal->pose.position, 
+                                   A = std::prev(goal)->pose.position; 
         
         std::pair<double, double> lineEQ = getLineEQ(A, B);
         double a = lineEQ.first, b = lineEQ.second;
+        if( a == nan("") || b == nan("") )
+        { 
+            throw std::runtime_error("Cannot calculate line between the two given points.");
+        }
 
         // (X - C.X)^2 + (Y - C.Y)^2 = r^2
         // X^2 - 2*C.x * X + C.x^2 + Y^2 - 2C.y * Y + C.y^2 = r^2
         // X^2 - 2*C.x * X + C.x^2 + (a*X+b)^2 - 2*C.y * (a*X+b) + C.y^2 - r^2 = 0
         // X^2 - 2*C.x * X + C.x^2 + a * X^2 + 2*a*b*X + b^2 - 2C.y * a * X + 2C.y * b + C.y^2 - r^2 = 0
         // X^2 + a * X^2 + | 2 * a * b * X   - 2C.y * a * X  | C.x^2 + b^2 + 2C.y * b + c.y^2 - r^2 
+
+        //const double aTerms = 1 + (a * a);
+        //const double bTerms = (-2 * C.x) + a;
+        //const double cTerms = (C.y + b) * 2 + pow( (C.y + b), 2) - pow(r, 2) + pow(C.x, 2);
 
         std::pair solution = solveQuadEQ(a + 1, (2 * a * b) - (2 * C.y * a), (C.x*C.x) + (b * b) + (2 * C.y * b) + (C.y * C.y) - ( r * r ) );
 
@@ -116,8 +132,8 @@ class LocalPlanner
         else
         {
             double yr1 = a * solution.first + b, yr2 = a * solution.second + b;
-            double dy1 = abs(B.y) - abs(yr1), dy2 = abs(B.y) - abs(yr2);
-            double dx1 = abs(B.x) - abs(solution.first), dx2 = abs(B.x) - abs(solution.second);
+            double dy1 = abs(B.y - yr1), dy2 = abs(B.y - yr2);
+            double dx1 = abs(B.x - solution.first), dx2 = abs(B.x - solution.second);
 
             geometry_msgs::Point p = geometry_msgs::Point();
             if(dx1 + dy1 < dx2 + dy2)
@@ -133,27 +149,41 @@ class LocalPlanner
         }
     }
 
-    inline bool isWithinTolerance(nav_msgs::Odometry position, std::vector<geometry_msgs::PoseStamped>::iterator goal, double tolerance)
+    inline bool isWithinTolerance(const geometry_msgs::Point& position, const geometry_msgs::PoseStamped& goal, double tolerance)
     {
-        if( ( position.pose.pose.position.x < goal->pose.position.x + tolerance && position.pose.pose.position.x > goal->pose.position.x - tolerance ) &&
-            ( position.pose.pose.position.y < goal->pose.position.y + tolerance && position.pose.pose.position.y > goal->pose.position.y - tolerance ) &&
-            ( position.pose.pose.position.z < goal->pose.position.z + tolerance && position.pose.pose.position.z > goal->pose.position.z - tolerance ) )
+        if( ( position.x < goal.pose.position.x + tolerance && position.x > goal.pose.position.x - tolerance ) &&
+            ( position.y < goal.pose.position.y + tolerance && position.y > goal.pose.position.y - tolerance ) &&
+            ( position.z < goal.pose.position.z + tolerance && position.z > goal.pose.position.z - tolerance ) )
         { return true; }
         else
         { return false; }
     }
 
+    inline bool isWithinTolerance(const nav_msgs::Odometry& position, const geometry_msgs::PoseStamped& goal, double tolerance)
+    {
+        isWithinTolerance(position.pose.pose.position, goal, tolerance);
+    }
+
+    std::vector<geometry_msgs::PoseStamped> validatePath(std::vector<geometry_msgs::PoseStamped> path)
+    {
+        if(path.size() < 2 )
+        {
+            throw std::out_of_range("path");
+        }
+        else
+        {
+            return path;
+        }
+    }
 
     public:
 
-    LocalPlanner(nav_msgs::Path path, std::string odometryTopicName, std::string cmdTopicName)
+    LocalPlanner(std::vector<geometry_msgs::PoseStamped> path, std::string odometryTopicName, std::string cmdTopicName)
+    : path( validatePath(path) ), goal( path.begin() + 1 ), controller( goal->pose.position )
     {   
-        if(path.poses.size() < 2)
-        {
-            throw std::out_of_range("A path cannot be created between less than two points. msg.poses is less than 2.");
-        }
-        this->path = path.poses;
-        goal = this->path.begin();
+
+        //this->path = path.poses;
+        //goal = this->path.begin();
 
         odomSub = n.subscribe(odometryTopicName, 1, &LocalPlanner::odomCallback, this );
         cmdPub  = n.advertise<geometry_msgs::Twist>(cmdTopicName, 1);
@@ -162,36 +192,28 @@ class LocalPlanner
     // NOTE: not sure if function should be public.
     void processOdom(const nav_msgs::Odometry& odom)
     {
-        if( isWithinTolerance(odom, goal, 0.0001) )
+        //NOTE: This check is done to see if current position and goal are close to equal at the start of the program.
+        if( isWithinTolerance(odom.pose.pose.position, *goal, 0.001))
         {
-            if(goal == path.end())
-            { goal = path.begin(); }
-            else
-            { goal++; }
-            return;
+            if(goal != path.end() - 1 )
+            { 
+                goal++;
+                controller.setGoal(*goal); 
+            }
         }
-        geometry_msgs::Twist move;
+        geometry_msgs::Point lookaheadPoint = getLookaheadPoint(odom.pose.pose.position, lookaheadDistance);
 
-        // TODO: Get look-ahead point from look ahead distance and its intersect with path.
+        if( isWithinTolerance(lookaheadPoint, *goal, 0.1) )
+        {
+            if(goal != path.end() - 1 )
+            { 
+                goal++;
+                 
+            }
+        }
 
-
-
-
-        const double dx = goal->pose.position.x - odom.pose.pose.position.x , dy = goal->pose.position.y - odom.pose.pose.position.y;
-        double Dsq =  pow(dx, 2) + pow(dy, 2) ;
-
-        double curvature = 2 * dx / Dsq;
-        //double radius = 1 / curvature;
-
-        move.angular.z = angularP * curvature;
-
-        move.linear.x = abs(linearP * dx);
-        move.linear.y = abs(linearP * dy);
-        move.linear.z = abs(linearP * 0);
-
-
-
-        cmdPub.publish(move);
+        controller.setGoal(lookaheadPoint);
+        cmdPub.publish( controller.updatePath(odom) );
 
     }
 
