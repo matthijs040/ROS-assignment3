@@ -11,7 +11,7 @@
 class GlobalPlanner
 {
     private:
-
+    
 
     public:
 
@@ -20,7 +20,7 @@ class GlobalPlanner
 
     nav_msgs::Path generateRectangularPath(const geometry_msgs::Point& widthAndHeight) const
     {
-        nav_msgs::Path path;
+        nav_msgs::Path path = nav_msgs::Path();;
         int width = widthAndHeight.x, height = widthAndHeight.y;
         
         geometry_msgs::PoseStamped pose = geometry_msgs::PoseStamped();
@@ -45,7 +45,7 @@ class GlobalPlanner
 
     nav_msgs::Path generateTriangularPath(const geometry_msgs::Point& widthAndHeight) const
     {
-        nav_msgs::Path path;
+        nav_msgs::Path path = nav_msgs::Path();
         int width = widthAndHeight.x, height = widthAndHeight.y, offset = widthAndHeight.z;
         
         geometry_msgs::PoseStamped pose = geometry_msgs::PoseStamped();
@@ -61,6 +61,8 @@ class GlobalPlanner
         pose.pose.position.x += offset;
         pose.pose.position.y += height;
         path.poses.push_back(pose);
+
+        return path;
     }
 
 };
