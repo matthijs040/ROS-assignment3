@@ -14,7 +14,7 @@
 class LocalPlanner
 {
     private:
-    double lookaheadDistance = 100.0;
+    double lookaheadDistance = 3.0;
     std::vector<geometry_msgs::PoseStamped> path; 
     std::vector<geometry_msgs::PoseStamped>::iterator goal;
     uint index;
@@ -77,7 +77,7 @@ class LocalPlanner
         { b = A.y; }
 
         // If it is a straight vertical line a == 0, b is equal to the X coordinate of either point.
-        if(a == nan("") )
+        if(isinf(a) )
         {
             a = 0; b = A.x;
         }
@@ -107,14 +107,12 @@ class LocalPlanner
         // X^2 - 2*C.x * X + C.x^2 + a * X^2 + 2*a*b*X + b^2 - 2C.y * a * X + 2C.y * b + C.y^2 - r^2 = 0
         // X^2 + a * X^2 + | 2 * a * b * X   - 2C.y * a * X  | C.x^2 + b^2 + 2C.y * b + c.y^2 - r^2 
 
-        //const double aTerms = 1 + (a * a);
-        //const double bTerms = (-2 * C.x) + a;
-        //const double cTerms = (C.y + b) * 2 + pow( (C.y + b), 2) - pow(r, 2) + pow(C.x, 2);
+        const double aTerms = pow(a, 2) + 1;
+        const double bTerms = ( -2 * C.x ) + ( 2 * a * (b - C.y) );
+        const double cTerms = pow(C.x, 2) + pow( (b - C.y), 2) - pow(r, 2);
 
-        std::pair solution = solveQuadEQ(a + 1, (2 * a * b) - (2 * C.y * a), (C.x*C.x) + (b * b) + (2 * C.y * b) + (C.y * C.y) - ( r * r ) );
+        std::pair solution = solveQuadEQ( aTerms, bTerms, cTerms );
 
-
-        
         // If both solutions are invalid. D < 0
         if(solution.first == nan("") )
         { 
