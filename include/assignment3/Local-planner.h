@@ -79,7 +79,7 @@ class LocalPlanner
         // If it is a straight vertical line a == 0, b is equal to the X coordinate of either point.
         if(isinf(a) )
         {
-            a = 0; b = A.x;
+            b = A.x;
         }
 
         return std::make_pair<double&, double&>(a , b);
@@ -94,6 +94,8 @@ class LocalPlanner
         const geometry_msgs::Point B = goal->pose.position, 
                                    A = std::prev(goal)->pose.position; 
         
+        std::pair<double, double> solution;
+        
         std::pair<double, double> lineEQ = getLineEQ(A, B);
         double a = lineEQ.first, b = lineEQ.second;
         if( a == nan("") || b == nan("") )
@@ -101,17 +103,25 @@ class LocalPlanner
             throw std::runtime_error("Cannot calculate line between the two given points.");
         }
 
-        // (X - C.X)^2 + (Y - C.Y)^2 = r^2
-        // X^2 - 2*C.x * X + C.x^2 + Y^2 - 2C.y * Y + C.y^2 = r^2
-        // X^2 - 2*C.x * X + C.x^2 + (a*X+b)^2 - 2*C.y * (a*X+b) + C.y^2 - r^2 = 0
-        // X^2 - 2*C.x * X + C.x^2 + a * X^2 + 2*a*b*X + b^2 - 2C.y * a * X + 2C.y * b + C.y^2 - r^2 = 0
-        // X^2 + a * X^2 + | 2 * a * b * X   - 2C.y * a * X  | C.x^2 + b^2 + 2C.y * b + c.y^2 - r^2 
+        // If getLineEQ returns a vertical line. The formula is X = b
+        if(isinf(a))
+        {
+            
+        }
+        else
+        {
+            // (X - C.X)^2 + (Y - C.Y)^2 = r^2
+            // X^2 - 2*C.x * X + C.x^2 + Y^2 - 2C.y * Y + C.y^2 = r^2
+            // X^2 - 2*C.x * X + C.x^2 + (a*X+b)^2 - 2*C.y * (a*X+b) + C.y^2 - r^2 = 0
+            // X^2 - 2*C.x * X + C.x^2 + a * X^2 + 2*a*b*X + b^2 - 2C.y * a * X + 2C.y * b + C.y^2 - r^2 = 0
+            // X^2 + a * X^2 + | 2 * a * b * X   - 2C.y * a * X  | C.x^2 + b^2 + 2C.y * b + c.y^2 - r^2 
 
-        const double aTerms = pow(a, 2) + 1;
-        const double bTerms = ( -2 * C.x ) + ( 2 * a * (b - C.y) );
-        const double cTerms = pow(C.x, 2) + pow( (b - C.y), 2) - pow(r, 2);
+            const double aTerms = pow(a, 2) + 1;
+            const double bTerms = ( -2 * C.x ) + ( 2 * a * (b - C.y) );
+            const double cTerms = pow(C.x, 2) + pow( (b - C.y), 2) - pow(r, 2);
 
-        std::pair solution = solveQuadEQ( aTerms, bTerms, cTerms );
+            solution = solveQuadEQ( aTerms, bTerms, cTerms );
+        }
 
         // If both solutions are invalid. D < 0
         if(solution.first == nan("") )
