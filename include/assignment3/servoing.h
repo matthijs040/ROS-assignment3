@@ -54,7 +54,7 @@ class Servoing
 
             const double desiredAngle =  atan2(goal.y - position.y, goal.x - position.x) ;
 
-            if( currentAngle < desiredAngle + 0.01 && currentAngle > desiredAngle  - 0.01 )
+            if( currentAngle < desiredAngle + 0.0001 && currentAngle > desiredAngle  - 0.0001 )
             {
                 // Reset starting angle. To be recalculated when a new goal is set.
                 angFinished = true;
@@ -64,7 +64,7 @@ class Servoing
             else
             {
 
-                double deviation =  abs(desiredAngle - currentAngle);
+                double deviation =  desiredAngle - currentAngle;
                 move.angular.z = angularP *  deviation ;
                 //std::cout << "moving at X: " + std::to_string( angles::to_degrees(currentAngle) ) + " \n";
 
@@ -91,20 +91,13 @@ class Servoing
             {
                 //std::cout << "currently in shoot! \n";
 
-                 double deviationX = abs(gX - cX);
-                 double deviationY = abs(gY - cY);
-                 double deviationZ = abs(gZ - cZ);
+                const double deviationX = gX - cX;
+                const double deviationY = gY - cY;
+                const double deviationZ = gZ - cZ;
 
-                if(deviationX < 1 && deviationY < 1)
-                { }
-                else if(deviationY < 1)
-                { deviationY = 1; }
-                else if(deviationX < 1)
-                { deviationX = 1; }
-
-                move.linear.x = abs(linearP * ( ( deviationX * deviationY) / 2 ) );
-                //move.linear.y = abs(linearP * deviationY);
-                //move.linear.z = abs(linearP * deviationZ);
+                move.linear.x = abs(linearP * deviationX);
+                move.linear.y = abs(linearP * deviationY);
+                move.linear.z = abs(linearP * deviationZ);
 
                 // TODO: Threshold movement?
 

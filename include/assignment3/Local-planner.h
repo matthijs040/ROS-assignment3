@@ -14,7 +14,7 @@
 class LocalPlanner
 {
     private:
-    double lookaheadDistance = 2.0;
+    double lookaheadDistance = 3.0;
     std::vector<geometry_msgs::PoseStamped> path; 
     std::vector<geometry_msgs::PoseStamped>::iterator goal;
     uint index;
@@ -106,48 +106,9 @@ class LocalPlanner
         // If getLineEQ returns a vertical line. The formula is X = b
         if(isinf(a))
         {
-            //Y^2 - 2CyY + b^2 - 2Cxb + Cx^2 + Cy^2 - r^2 = 0
-
-            const double aTerms = 1;
-            const double bTerms = -2 * C.y;
-            const double cTerms = pow(b, 2) - 2 * C.x * b + pow(C.x, 2) + pow(C.y, 2) - pow(r, 2) ;
-
-            solution = solveQuadEQ( aTerms, bTerms, cTerms );
-
-            // If both solutions are invalid. D < 0
-            if(solution.first == nan("") )
-            { 
-                return geometry_msgs::Point(); 
-            }
-            // if only the second solution is invalid.
-            else if(solution.second == nan("") )
-            {
-                // Point constructor does not allow non-default parameters on construction. >.<
-                geometry_msgs::Point p = geometry_msgs::Point();
-                p.x = solution.first;
-                p.y = a * solution.first + b;
-                return p;
-            }
-            else
-            {
-                const double xr1 = b, xr2 = b;
-                const double dy1 = abs(B.y - solution.first), dy2 = abs(B.y - solution.second);
-                const double dx1 = abs(C.x - xr1), dx2 = abs(C.x - xr2);
-
-                 geometry_msgs::Point p = geometry_msgs::Point();
-                if(dx1 + dy1 < dx2 + dy2)
-                {
-                    p.x = xr1; p.y = solution.first;
-                    return p;
-                }
-                else
-                {
-                    p.x = xr2; p.y = solution.second;
-                    return p;                
-                }
-            }
+            
         }
-        else // Y = ax+b || Y = b
+        else
         {
             // (X - C.X)^2 + (Y - C.Y)^2 = r^2
             // X^2 - 2*C.x * X + C.x^2 + Y^2 - 2C.y * Y + C.y^2 = r^2
@@ -160,38 +121,38 @@ class LocalPlanner
             const double cTerms = pow(C.x, 2) + pow( (b - C.y), 2) - pow(r, 2);
 
             solution = solveQuadEQ( aTerms, bTerms, cTerms );
+        }
 
-               // If both solutions are invalid. D < 0
-            if(solution.first == nan("") )
-            { 
-                return geometry_msgs::Point(); 
-            }
-            // if only the second solution is invalid.
-            else if(solution.second == nan("") )
+        // If both solutions are invalid. D < 0
+        if(solution.first == nan("") )
+        { 
+            return geometry_msgs::Point(); 
+        }
+        // if only the second solution is invalid.
+        else if(solution.second == nan("") )
+        {
+            // Point constructor does not allow non-default parameters on construction. >.<
+            geometry_msgs::Point p = geometry_msgs::Point();
+            p.x = solution.first;
+            p.y = a * solution.first + b;
+            return p;
+        }
+        else
+        {
+            double yr1 = a * solution.first + b, yr2 = a * solution.second + b;
+            double dy1 = abs(B.y - yr1), dy2 = abs(B.y - yr2);
+            double dx1 = abs(B.x - solution.first), dx2 = abs(B.x - solution.second);
+
+            geometry_msgs::Point p = geometry_msgs::Point();
+            if(dx1 + dy1 < dx2 + dy2)
             {
-                // Point constructor does not allow non-default parameters on construction. >.<
-                geometry_msgs::Point p = geometry_msgs::Point();
-                p.x = solution.first;
-                p.y = a * solution.first + b;
+                p.x = solution.first; p.y = yr1;
                 return p;
             }
             else
             {
-                const double yr1 = a * solution.first + b, yr2 = a * solution.second + b;
-                const double dy1 = abs(B.y - yr1), dy2 = abs(B.y - yr2);
-                const double dx1 = abs(B.x - solution.first), dx2 = abs(B.x - solution.second);
-
-                geometry_msgs::Point p = geometry_msgs::Point();
-                if(dx1 + dy1 < dx2 + dy2)
-                {
-                    p.x = solution.first; p.y = yr1;
-                    return p;
-                }
-                else
-                {
-                    p.x = solution.second; p.y = yr2;
-                    return p;                
-                }
+                p.x = solution.second; p.y = yr2;
+                return p;                
             }
         }
     }
@@ -252,7 +213,7 @@ class LocalPlanner
 
         if( isWithinTolerance(lookaheadPoint, *goal, 0.1) )
         {
-            if( !isWithinTolerance( path.back().pose.position, *goal, 0.1 ) )
+            if(goal != path.end() - 1 )
             { 
                 goal++;
                  
