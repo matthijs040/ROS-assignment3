@@ -7,6 +7,7 @@
 #include <math.h>
 #include <optional>
 #include "tf/tf.h"
+#include "angles/angles.h"
 
 class Servoing 
 {
@@ -52,9 +53,19 @@ class Servoing
         if(!Servoing::angFinished)
         {
 
-            const double desiredAngle =  atan2(goal.y - position.y, goal.x - position.x) ;
+            double desiredAngle =  atan2(goal.y - position.y, goal.x - position.x);
 
-            if( currentAngle < desiredAngle + 0.0001 && currentAngle > desiredAngle  - 0.0001 )
+            // NOTE: This logic is to prevent irratic motion when stage passes the PI / -PI angle when at a left 90 degree angle.
+            if( angles::to_degrees(currentAngle) < -140.0 &&  angles::to_degrees(desiredAngle) > 170.0 )
+            { 
+                desiredAngle = -M_PI; 
+            }
+            else if( angles::to_degrees(currentAngle) > 140.0 && angles::to_degrees(desiredAngle) < -170.0 )
+            {
+                desiredAngle = M_PI;
+            }
+
+            if( currentAngle < desiredAngle + 0.01 && currentAngle > desiredAngle  - 0.01 )
             {
                 // Reset starting angle. To be recalculated when a new goal is set.
                 angFinished = true;
@@ -66,7 +77,7 @@ class Servoing
 
                 double deviation =  desiredAngle - currentAngle;
                 move.angular.z = angularP *  deviation ;
-                //std::cout << "moving at X: " + std::to_string( angles::to_degrees(currentAngle) ) + " \n";
+                //std::cout << "currentAngle == " + std::to_string( angles::to_degrees(currentAngle) ) + "and desiredAngle == " + std::to_string( angles::to_degrees(desiredAngle) ) + " \n";
 
                 // TODO: Threshold movement?
 
@@ -85,7 +96,6 @@ class Servoing
             {
                 linFinished = true;
                 std::cout << "linear motion finished. \n";
-                return geometry_msgs::Twist();
             }
             else
             {
@@ -95,9 +105,9 @@ class Servoing
                 const double deviationY = gY - cY;
                 const double deviationZ = gZ - cZ;
 
-                move.linear.x = abs(linearP * deviationX);
-                move.linear.y = abs(linearP * deviationY);
-                move.linear.z = abs(linearP * deviationZ);
+                move.linear.x = ( std::abs(linearP * deviationX) + std::abs(linearP * deviationY) ) / 2 ;
+                //move.linear.y = std::abs(linearP * deviationY);
+                //move.linear.z = std::abs(linearP * deviationZ);
 
                 // TODO: Threshold movement?
 

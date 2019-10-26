@@ -33,6 +33,10 @@ nav_msgs::Path generateRectangularPath(const geometry_msgs::Point& widthAndHeigh
         pose.pose.position.x -= width;
         path.poses.push_back(pose);
 
+        //Final pose.
+        pose.pose.position.y -= height;
+        path.poses.push_back(pose);
+
         return path;        
 }
 
