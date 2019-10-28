@@ -61,6 +61,8 @@ class LocalPlanner
         return result;
     }
 
+
+
     // Calculates the line equation from two given intersections A and B.
     // Returns: The equation in the "y = a * x + b" form where the pair of doubles is < a, b >.
     // https://www.mathsisfun.com/algebra/line-equation-2points.html
@@ -70,7 +72,9 @@ class LocalPlanner
         double a = dy / dx;
 
         // y = a * x + b  =====>  b = y / ( a * x )
-        double b = A.y / ( a * A.x );
+        // double b = B.y / ( a * B.x ); INCORRECT!!!!
+
+        double b = ( -dy * A.x + dx * A.y) / dx;
 
         // If it is a straight horizontal line b is equal to the y coordinate of either point.
         if(a == 0)

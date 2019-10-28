@@ -28,6 +28,9 @@ nav_msgs::Path generateTriangularPath(const geometry_msgs::Point& widthAndHeight
     pose.pose.position.y += height;
     path.poses.push_back(pose);
 
+    // Final pose, back to start.
+    path.poses.push_back(path.poses.at(0));    
+
     return path;
 }
 
