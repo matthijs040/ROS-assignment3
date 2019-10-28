@@ -53,17 +53,7 @@ class Servoing
         if(!Servoing::angFinished)
         {
 
-            double desiredAngle =  atan2(goal.y - position.y, goal.x - position.x);
-
-            // NOTE: This logic is to prevent irratic motion when stage passes the PI / -PI angle when at a left 90 degree angle.
-            if( angles::to_degrees(currentAngle) < -140.0 &&  angles::to_degrees(desiredAngle) > 170.0 )
-            { 
-                desiredAngle = -M_PI; 
-            }
-            else if( angles::to_degrees(currentAngle) > 140.0 && angles::to_degrees(desiredAngle) < -170.0 )
-            {
-                desiredAngle = M_PI;
-            }
+            double desiredAngle = atan2( goal.y - position.y ,  goal.x - position.x  );
 
             if( currentAngle < desiredAngle + 0.01 && currentAngle > desiredAngle  - 0.01 )
             {
@@ -76,6 +66,18 @@ class Servoing
             {
 
                 double deviation =  desiredAngle - currentAngle;
+
+                // NOTE: Theshold to correct for huge deviations when passing the PI -PI angle on the unity circle.
+                if( deviation > M_PI) 
+                {
+                    deviation -= (2 * M_PI);
+                }
+                else if( deviation < -M_PI)
+                {
+                    deviation += (2 * M_PI);   
+                }
+
+
                 move.angular.z = angularP *  deviation ;
                 //std::cout << "currentAngle == " + std::to_string( angles::to_degrees(currentAngle) ) + "and desiredAngle == " + std::to_string( angles::to_degrees(desiredAngle) ) + " \n";
 
