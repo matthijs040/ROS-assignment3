@@ -46,7 +46,7 @@ class TFHandler
      * @param joint2 
      * @param recv 
      */
-    TFHandler( std::string joint1 = "/joint", std::string joint2 = "/base", std::function< void( tf::StampedTransform ) > recv = nullptr, int frequency = 0.5 )
+    TFHandler( std::string joint1 = "/joint", std::string joint2 = "/base", std::function< void( tf::StampedTransform ) > recv = nullptr )
     : n( ros::NodeHandle() )
     , receiver( recv )
     , joint1(joint1)
@@ -85,7 +85,7 @@ class TFHandler
 
         return transform;
         
-    }
+    } 
 };
 
 #endif

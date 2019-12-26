@@ -7,8 +7,9 @@
 #include "nav_msgs/Path.h"
 #include "geometry_msgs/Point.h"
 
-#include "../include/assignment3/subscriptionPublisher.h"
 #include "../include/assignment3/Local-planner.h"
+
+#include "../include/assignment3/tf-handler.hpp"
 
 
 nav_msgs::Path Path = nav_msgs::Path();
@@ -27,10 +28,9 @@ int main(int argc, char *argv[])
 {
     ros::init(argc, argv, "local_planner_node" );
     ros::NodeHandle n;
+
     ros::Subscriber pathSub = n.subscribe("/plan", 1, pathCallback);
-
-    //SubscriptionPublisher<geometry_msgs::Twist, nav_msgs::Odometry> LPupdate("/cmd_vel", "/odom", &(Planner->followCarrot) );
-
+    ros::Publisher twistPub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
 
     // Wait until receiving a path.
     ROS_INFO("awaiting a path on the /plan topic. \n");
@@ -43,9 +43,21 @@ int main(int argc, char *argv[])
 
     // Path has been received.
     // Local planner sets up the publisher and subscriber.
-    LocalPlanner planner = LocalPlanner(path.poses, "/odom", "/cmd_vel");
+    LocalPlanner planner = LocalPlanner(path.poses);
+    TFHandler tfrecv = TFHandler("/odom", "/base_link");
 
-    ros::spin();
+    // Main loop
+    while( ros::ok() )
+    {
+        ros::spinOnce();
+
+        tf::StampedTransform transform = tfrecv.getTransform();
+        geometry_msgs::Twist twist = planner.processTF( transform ); 
+
+        twistPub.publish(twist);
+
+        ros::Duration(0.1).sleep();
+    }
 
     return 0;    
 }
