@@ -1,19 +1,23 @@
 #ifndef LOCAL_PLANNER_H
 #define LOCAL_PLANNER_H
 
-#include "geometry_msgs/Twist.h"
-#include "geometry_msgs/PoseStamped.h"
-
-#include "nav_msgs/Odometry.h"
-#include "nav_msgs/Path.h"
-#include "geometry_msgs/Point.h"
+#include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/Point.h>
 
 #include "math.h"
 #include "servoing.h"
 
+#include <tf/transform_listener.h>
+#include <ros/node_handle.h>
+#include "tf-handler.hpp"
+
 class LocalPlanner
 {
-    private:
+    protected:
     double lookaheadDistance = 2.0;
     std::vector<geometry_msgs::PoseStamped> path; 
     int goal;
@@ -24,9 +28,11 @@ class LocalPlanner
     Servoing controller;
     bool finalgoal;
 
+    TFHandler tfReceiver;
+
     void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     {
-        processOdom(*msg);
+        // processOdom(*msg);
     }
 
     // Determines the solutions for the given quadratic equation using the "a b c" formula
@@ -233,20 +239,41 @@ class LocalPlanner
         }
     }
 
+    // Receiver function for the TFHandler. 
+    void processTF( )
+    {
+        // Checking some member variable to see if it is non-default / actually received data and no error.
+        if( latestTransform.stamp_ != tf::StampedTransform().stamp_ )
+        {
+            geometry_msgs::Point position;
+            position.x = latestTransform.getOrigin().getX();
+            position.y = latestTransform.getOrigin().getY();
+            position.z = latestTransform.getOrigin().getZ();
+
+            double angle = tf::getYaw( latestTransform.getRotation() );
+
+            processPosition( position, angle);
+        }
+    }
+
+
     public:
 
+    // boost::function<void (int)> f2( boost::bind( &myclass::fun2, this, _1 ) )
+    // boost::bind<void>(&LocalPlanner::processTF, this, _1)
+    //https://stackoverflow.com/questions/2304203/how-to-use-boost-bind-with-a-member-function
     LocalPlanner(std::vector<geometry_msgs::PoseStamped> path, std::string odometryTopicName, std::string cmdTopicName)
     : path( validatePath(path) ), goal( 1 ), controller( path.at(goal).pose.position )
     {   
-        odomSub = n.subscribe(odometryTopicName, 1, &LocalPlanner::odomCallback, this );
+        // odomSub = n.subscribe(odometryTopicName, 1, &LocalPlanner::odomCallback, this );
+        tfReceiver = TFHandler( "/odom", "/base_link", receiveTF ) ;
         cmdPub  = n.advertise<geometry_msgs::Twist>(cmdTopicName, 1);
         finalgoal = false;
     }
 
-    // NOTE: not sure if function should be public.
-    void processOdom(const nav_msgs::Odometry& odom)
+    void processPosition(geometry_msgs::Point position, double angle)
     {
-        geometry_msgs::Point lookaheadPoint = getLookaheadPoint(odom.pose.pose.position, lookaheadDistance);
+        geometry_msgs::Point lookaheadPoint = getLookaheadPoint(position, lookaheadDistance);
 
         if( isWithinTolerance(lookaheadPoint, path.at(goal), 0.1) )
         {
@@ -267,11 +294,16 @@ class LocalPlanner
             controller.setGoal(lookaheadPoint);
         }
 
-        cmdPub.publish( controller.updatePath(odom) );
+        cmdPub.publish( controller.updatePath(position, angle) );
+    }
 
+    void processOdom(const nav_msgs::Odometry& odom)
+    {
+        processPosition(odom.pose.pose.position, tf::getYaw(odom.pose.pose.orientation) );
     }
 
 };
+
 
 
 #endif

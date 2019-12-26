@@ -1,0 +1,31 @@
+<!-- Launch file for the third ROS assignment. Uncomment the needed global planner below.-->
+
+<launch>
+<!-- ROS timer based callbacks apparently need this parameter! -->
+    <param name="/use_sim_time" value="true"/>
+    <!-- An instance of roscore, if not already running will be started IMPLICITLY. -->
+
+    <!-- rectangle_planner_node: This node will listen on the /rectspec topic for a point message specifying the height and width of the rectangle to traverse. -->
+    <!-- The "X coordinate" Of this message will be the width of the rectangle. The "Y coordinate" it's height. -->
+    <node pkg="assignment3" type="rectangle_planner_node" name="global_controller" />
+
+    <!-- triangle_planner_node: This node will listen on the /trispec topic for a point message specifying the triangle. 
+         The "X coordinate" of this message will be the length of the base of the triangle. 
+         The Y its height and the Z the offset of the tip in relation to the second point. -->
+    <!-- <node pkg="assignment3" type="triangle_planner_node" name="global_controller" /> -->
+
+    <!-- This static transformer looks up the translation between stage's base_link and its map. This is published to TF-->
+    <node pkg="tf" type="static_transform_publisher" name="localizer" args="0 0 0 0 0 0 map odom 10" />
+
+    <!-- local_planner_node: This node is where most of the work happens. It listens either to odometry or a tf message containing odometry information. 
+         From this, combined with a path from the global planner, a local goal is calulated and sent to a servoing controller from assignment 2. -->
+    <!-- <node pkg="assignment3" type="local_planner_node" name="local_controller" /> -->
+
+    <!-- node for stage. It assumes that a file called "empty.world" is placed in the home directory of the user to load in. -->
+    <!-- The worldfile location and name can of course be edited in the argument.-->
+    <!-- NOTE: The path MUST be an absolute path. Stage does NOT accept the home alias ~/empty.world for example. -->
+    <node pkg="stage_ros" type="stageros" name="stage_ros_instance" args="/home/matthew1804/empty.world"/>
+
+    
+
+</launch>

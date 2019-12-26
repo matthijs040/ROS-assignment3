@@ -1,12 +1,12 @@
 #ifndef SERVOING_H
 #define SERVOING_H
 
-#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/Twist.h"
-#include "nav_msgs/Odometry.h"
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
 #include <math.h>
-#include "tf/tf.h"
-#include "angles/angles.h"
+#include <tf/tf.h>
+#include <angles/angles.h>
 
 class Servoing 
 {
@@ -42,48 +42,41 @@ class Servoing
         setGoal(goal.pose.position);
     }
 
-    // Possible function when making the goal a vector of goals? Making it set the newer goal after reaching its current goal.
-    // void queueGoal(geometry_msgs::Point::ConstPtr& goal);
-
     geometry_msgs::Twist updatePath(const geometry_msgs::Point position, const double currentAngle)
     {
         geometry_msgs::Twist move = geometry_msgs::Twist();
 
+        double desiredAngle = atan2( goal.y - position.y ,  goal.x - position.x  );
+        if( currentAngle < desiredAngle + 0.01 && currentAngle > desiredAngle  - 0.01 )
+        {
+            angFinished = true;
+            ROS_DEBUG("rotation finished.");
+        }
+        else //NOTE: This check has to be done to correct the angle again after long linear motion to correct for drift.
+        {
+            angFinished = false;
+        }
+
         if(!Servoing::angFinished)
         {
+            double deviation =  desiredAngle - currentAngle;
 
-            double desiredAngle = atan2( goal.y - position.y ,  goal.x - position.x  );
-
-            if( currentAngle < desiredAngle + 0.01 && currentAngle > desiredAngle  - 0.01 )
+            // NOTE: Theshold to correct for huge deviations when passing the PI -PI angle on the unity circle.
+            if( deviation > M_PI) 
             {
-                // Reset starting angle. To be recalculated when a new goal is set.
-                angFinished = true;
-                //std::cout << "rotation finished. \n";
-                //return geometry_msgs::Twist();
-            }
-            else
-            {
-
-                double deviation =  desiredAngle - currentAngle;
-
-                // NOTE: Theshold to correct for huge deviations when passing the PI -PI angle on the unity circle.
-                if( deviation > M_PI) 
-                {
                     deviation -= (2 * M_PI);
-                }
-                else if( deviation < -M_PI)
-                {
-                    deviation += (2 * M_PI);   
-                }
-
-
-                move.angular.z = angularP *  deviation ;
-                //std::cout << "currentAngle == " + std::to_string( angles::to_degrees(currentAngle) ) + "and desiredAngle == " + std::to_string( angles::to_degrees(desiredAngle) ) + " \n";
-
-                // TODO: Threshold movement?
-
             }
+            else if( deviation < -M_PI)
+            {
+                    deviation += (2 * M_PI);   
+            }
+
+            move.angular.z = angularP *  deviation ;
+            // TODO: Threshold movement?
+
         }
+        
+
         if(!linFinished)
         {
              const double cX = position.x,  cY = position.y,  cZ = position.z,
@@ -96,19 +89,13 @@ class Servoing
               && ( cZ < gZ + 0.01 && cZ > gZ - 0.01 ) )
             {
                 linFinished = true;
-                std::cout << "linear motion finished. \n";
+                ROS_DEBUG("linear motion finished.");
             }
             else
             {
-                //std::cout << "currently in shoot! \n";
-
                 const double deviationX = gX - cX;
                 const double deviationY = gY - cY;
-                const double deviationZ = gZ - cZ;
-
                 move.linear.x = ( std::abs(linearP * deviationX) + std::abs(linearP * deviationY) ) / 2 ;
-                //move.linear.y = std::abs(linearP * deviationY);
-                //move.linear.z = std::abs(linearP * deviationZ);
 
                 // TODO: Threshold movement?
 
